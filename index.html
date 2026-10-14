@@ -438,10 +438,14 @@ function render() {
   drawPanel();
   drawNews();
   drawFrame();
+  ctx.restore();
+  drawTitle();
+  // Leonardo goes over the bar, the photo and the title box; only the bottom border sits on top of him
+  ctx.save();
+  if (flipped()) { ctx.translate(W, 0); ctx.scale(-1, 1); }
   drawMe();
   drawBottomBar();
   ctx.restore();
-  drawTitle();
   drawLogo();
 }
 
