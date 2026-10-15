@@ -330,7 +330,7 @@ function edgeLine(y, x) {
 
 function drawLogo() {
   if (!state.showLogo || !IMG.logo) return;
-  const w = 200, h = w * IMG.logo.height / IMG.logo.width, x = flipped() ? W - 28 - w : 28;
+  const w = 150, h = w * IMG.logo.height / IMG.logo.width, x = flipped() ? W - 28 - w : 28;
   ctx.drawImage(IMG.logo, x, 22, w, h);
 }
 
