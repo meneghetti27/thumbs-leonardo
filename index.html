@@ -190,17 +190,10 @@ const flipped = () => state.layout === "invertido";
 
 function drawPanel() {
   const [c1, c2, xc] = PANELS[state.panel] || PANELS.cinza;
-  // like the channel: the news photo continues behind Leonardo's panel, seen through a light veil
-  let veil = 1;
-  if (state.news) {
-    const img = state.news, s = Math.max(W / img.width, H / img.height);
-    ctx.save(); ctx.filter = "blur(10px)";
-    ctx.drawImage(img, (W - img.width * s) / 2, (H - img.height * s) / 2, img.width * s, img.height * s);
-    ctx.restore(); veil = .8;
-  }
+  // solid panel: the news photo stops at the diagonal bar
   const g = ctx.createLinearGradient(SLANT_BOT, 0, W, H);
   g.addColorStop(0, c1); g.addColorStop(1, c2);
-  ctx.save(); ctx.globalAlpha = veil; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   // orange tint growing toward the bottom, next to the diagonal bar
   const o = ctx.createLinearGradient(0, 0, 0, H);
   o.addColorStop(0, "rgba(242,101,34,0)"); o.addColorStop(.55, "rgba(242,101,34,.12)"); o.addColorStop(1, "rgba(242,101,34,.35)");
