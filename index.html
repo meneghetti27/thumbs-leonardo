@@ -383,8 +383,12 @@ function badgeImgs() {
 }
 
 function drawTitle() {
-  const lines = parseTitle(state.title);
+  let lines = parseTitle(state.title);
   if (!lines.length) return;
+  // espaços no começo de uma linha empurram só aquela linha: o tamanho da letra e a posição das outras não mudam
+  const recuos = lines.map(segs => segs.length ? segs[0].text.match(/^ */)[0].length : 0);
+  lines = lines.map(segs => segs.map((sg, k) => ({ ...sg,
+    text: k === 0 ? sg.text.replace(/^ +/, "") : k === segs.length - 1 ? sg.text.replace(/ +$/, "") : sg.text })).filter(sg => sg.text));
   const badges = badgeImgs();
   // crests sit on the box's left edge, overlapping the first line like on the channel
   const R = badges.length > 1 ? 44 : 50, crestW = badges.length ? R * 2 + (badges.length - 1) * (R * 2 + 8) : 0;
@@ -397,7 +401,16 @@ function drawTitle() {
   // diminui até caber na largura e na altura da thumb
   while (size > 24 && (need(size) > maxBoxW || altura(size) > H - 80)) size -= 2;
   const lh = size * 0.86, cap = size * 0.7, padV = 16;
-  const boxW = Math.max(400, Math.min(maxBoxW, need(size)));
+  const baseW = Math.max(400, Math.min(maxBoxW, need(size)));
+  ctx.font = FONT(size); const espaco = ctx.measureText(" ").width;
+  // posição de cada linha dentro da caixa, pelo alinhamento escolhido
+  const larg = lines.map(l => lineWidth(l, size));
+  const pos = lines.map((_, i) => state.align === "left" ? offs[i] : state.align === "right" ? baseW - padR - larg[i]
+    : offs[i] + (baseW - padR - offs[i] - larg[i]) / 2);
+  // recuo em pixels, limitado para a linha nunca passar da largura máxima da caixa
+  const recuoPx = lines.map((_, i) => Math.max(0, Math.min(recuos[i] * espaco, maxBoxW - padR - pos[i] - larg[i])));
+  // a caixa cresce para a direita se um recuo passar da borda, sem mexer nas outras linhas
+  const boxW = Math.max(baseW, ...lines.map((_, i) => pos[i] + recuoPx[i] + larg[i] + padR));
   const boxH = (lines.length - 1) * lh + cap + padV * 2, boxY = H - 30 - boxH;
   const sk = boxH * (SLANT_TOP - SLANT_BOT) / H, rise = 6;   // slanted left/right edges, top and bottom climbing slightly to the right
   const quad = () => {
@@ -420,8 +433,7 @@ function drawTitle() {
   ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
   lines.forEach((segs, i) => {
     const ym = boxY + padV + cap / 2 + lh * i, ex = boxX + sk * (1 - (ym - boxY) / boxH);   // box edge at this line's height
-    const lw = lineWidth(segs, size), left = ex + offs[i], right = ex + boxW - padR;
-    let x = state.align === "left" ? left : state.align === "right" ? right - lw : left + (right - left - lw) / 2;
+    let x = ex + pos[i] + recuoPx[i];
     const y = boxY + padV + 2 + cap + lh * i;
     ctx.font = FONT(size);
     for (const s of segs) { ctx.fillStyle = s.hi ? "#ff7a2f" : "#fff"; ctx.fillText(s.text, x, y); x += ctx.measureText(s.text).width; }
