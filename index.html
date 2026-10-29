@@ -393,7 +393,9 @@ function drawTitle() {
   // crests sit on the box's left edge, overlapping the first line like on the channel
   const R = badges.length > 1 ? 44 : 50, crestW = badges.length ? R * 2 + (badges.length - 1) * (R * 2 + 8) : 0;
   const padR = 30, maxBoxW = 790, boxX = 34;
-  const offs = lines.map((_, i) => i === 0 && badges.length ? crestW + 14 : 34);
+  // a primeira linha começa logo depois da borda direita do(s) escudo(s), que ficam em cima da borda esquerda da caixa
+  const fimEscudo = badges.length ? R * 1.55 + (badges.length - 1) * (R * 2 + 8) + 8 : 0;
+  const offs = lines.map((_, i) => i === 0 && badges.length ? fimEscudo : 34);
   const n = lines.length;
   let size = (n === 1 ? 150 : n === 2 ? 116 : n === 3 ? 86 : 260 / n) * state.titleScale;
   const need = s => Math.max(...lines.map((l, i) => offs[i] + lineWidth(l, s))) + padR;
@@ -405,8 +407,9 @@ function drawTitle() {
   ctx.font = FONT(size); const espaco = ctx.measureText(" ").width;
   // posição de cada linha dentro da caixa, pelo alinhamento escolhido
   const larg = lines.map(l => lineWidth(l, size));
-  const pos = lines.map((_, i) => state.align === "left" ? offs[i] : state.align === "right" ? baseW - padR - larg[i]
-    : offs[i] + (baseW - padR - offs[i] - larg[i]) / 2);
+  // a linha do escudo começa colada nele (menos no alinhamento à direita)
+  const pos = lines.map((_, i) => state.align === "left" || (i === 0 && badges.length && state.align === "center") ? offs[i]
+    : state.align === "right" ? baseW - padR - larg[i] : offs[i] + (baseW - padR - offs[i] - larg[i]) / 2);
   // recuo em pixels, limitado para a linha nunca passar da largura máxima da caixa
   const recuoPx = lines.map((_, i) => Math.max(0, Math.min(recuos[i] * espaco, maxBoxW - padR - pos[i] - larg[i])));
   // a caixa cresce para a direita se um recuo passar da borda, sem mexer nas outras linhas
