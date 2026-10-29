@@ -77,7 +77,14 @@
       <h2>1. Título</h2>
       <textarea id="title" spellcheck="false">AMADORISMO *IMPRESSIONANTE!*</textarea>
       <p class="small" id="wordHint"></p>
-      <p class="small">Enter quebra a linha. Palavra entre *asteriscos* fica laranja.</p>
+      <p class="small">O texto sai do jeito que você escrever: cada Enter é uma linha nova e linha vazia vira espaço. Palavra entre *asteriscos* fica laranja.</p>
+      <div class="row" id="align" style="margin-top:10px">
+        <button data-a="left">Esquerda</button>
+        <button data-a="center" class="on">Centro</button>
+        <button data-a="right">Direita</button>
+      </div>
+      <label class="range">Tamanho <input type="range" id="titleScale" min="0.6" max="1.4" step="0.01" value="1"></label>
+      <label class="check"><input type="checkbox" id="autoBreak"> Quebrar em duas linhas sozinho se eu não der Enter</label>
     </div>
 
     <div class="card">
@@ -147,7 +154,8 @@ const state = {
   news: null, newsZoom: 1, newsX: 0, newsY: 0,
   poses: [], pose: 0, meSize: 1, meX: 0, meY: 0, mirror: false,
   badge: "gremio", customBadge: null, showLogo: true,
-  title: "", layout: "padrao", panel: "cinza", blur: 0, dark: 0.35
+  title: "", layout: "padrao", panel: "cinza", blur: 0, dark: 0.35,
+  align: "center", titleScale: 1, autoBreak: false
 };
 
 function loadImg(src) {
@@ -334,11 +342,15 @@ function roundRect(x, y, w, h, r) {
 
 /* title: lines of [{text, hi}] segments */
 function parseTitle(raw) {
-  let text = raw.toUpperCase().replace(/\r/g, "").trim();
-  let lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-  if (lines.length === 1) lines = autoSplit(lines[0]);
+  let text = raw.replace(/\r/g, "");
+  text = text.toUpperCase();
+  // respeita o que foi digitado: cada Enter é uma linha, linha vazia no meio vira espaço, espaços entre palavras ficam
+  let lines = text.split("\n").map(l => l.replace(/\s+$/, ""));
+  while (lines.length && !lines[0].trim()) lines.shift();
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  if (lines.length === 1 && state.autoBreak) lines = autoSplit(lines[0].trim());
   let hi = false;
-  return lines.slice(0, 3).map(line => {
+  return lines.slice(0, 8).map(line => {
     const segs = []; let buf = "";
     for (const ch of line) {
       if (ch === "*") { if (buf) segs.push({ text: buf, hi }); buf = ""; hi = !hi; } else buf += ch;
@@ -378,9 +390,12 @@ function drawTitle() {
   const R = badges.length > 1 ? 44 : 50, crestW = badges.length ? R * 2 + (badges.length - 1) * (R * 2 + 8) : 0;
   const padR = 30, maxBoxW = 790, boxX = 34;
   const offs = lines.map((_, i) => i === 0 && badges.length ? crestW + 14 : 34);
-  let size = lines.length === 1 ? 150 : lines.length === 2 ? 116 : 86;
+  const n = lines.length;
+  let size = (n === 1 ? 150 : n === 2 ? 116 : n === 3 ? 86 : 260 / n) * state.titleScale;
   const need = s => Math.max(...lines.map((l, i) => offs[i] + lineWidth(l, s))) + padR;
-  while (size > 40 && need(size) > maxBoxW) size -= 2;
+  const altura = s => (n - 1) * s * 0.86 + s * 0.7 + 32;
+  // diminui até caber na largura e na altura da thumb
+  while (size > 24 && (need(size) > maxBoxW || altura(size) > H - 80)) size -= 2;
   const lh = size * 0.86, cap = size * 0.7, padV = 16;
   const boxW = Math.max(400, Math.min(maxBoxW, need(size)));
   const boxH = (lines.length - 1) * lh + cap + padV * 2, boxY = H - 30 - boxH;
@@ -406,7 +421,7 @@ function drawTitle() {
   lines.forEach((segs, i) => {
     const ym = boxY + padV + cap / 2 + lh * i, ex = boxX + sk * (1 - (ym - boxY) / boxH);   // box edge at this line's height
     const lw = lineWidth(segs, size), left = ex + offs[i], right = ex + boxW - padR;
-    let x = left + (right - left - lw) / 2;
+    let x = state.align === "left" ? left : state.align === "right" ? right - lw : left + (right - left - lw) / 2;
     const y = boxY + padV + 2 + cap + lh * i;
     ctx.font = FONT(size);
     for (const s of segs) { ctx.fillStyle = s.hi ? "#ff7a2f" : "#fff"; ctx.fillText(s.text, x, y); x += ctx.measureText(s.text).width; }
@@ -536,6 +551,15 @@ async function init() {
     render();
   };
   $("title").oninput = onTitle; onTitle();
+  // formato do título
+  state.align = store.get("align", "center");
+  state.autoBreak = store.get("autoBreak2", false); $("autoBreak").checked = state.autoBreak;
+  const marcaAlinhamento = () => document.querySelectorAll("#align button").forEach(b => b.classList.toggle("on", b.dataset.a === state.align));
+  marcaAlinhamento();
+  document.querySelectorAll("#align button").forEach(b => b.onclick = () => { state.align = b.dataset.a; store.set("align", state.align); marcaAlinhamento(); render(); });
+  $("titleScale").oninput = e => { state.titleScale = +e.target.value; render(); };
+  $("autoBreak").onchange = e => { state.autoBreak = e.target.checked; store.set("autoBreak2", state.autoBreak); render(); };
+  render();
   $("dark").oninput = e => { state.dark = +e.target.value; render(); };
   const pick = (box, attr, key) => document.querySelectorAll(`#${box} button`).forEach(b => b.onclick = () => {
     state[key] = b.dataset[attr];
